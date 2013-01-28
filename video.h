@@ -74,6 +74,8 @@ SvSpace* load_video_frames(string frame_dir) {
 
     vector<string>* paths = list_files(frame_dir);
 
+    svspace->data->reserve(paths->size());
+
     // Read each image file from list of paths
     for(unsigned i = 0; i < paths->size(); i++) {
         string fname = paths->at(i);
