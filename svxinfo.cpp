@@ -121,14 +121,18 @@ vector<Sv*>* svxinfo(SvSpace* svspace, string video_dir) {
                 if(x > 0){
                     neigh = svspace->getPixel(x-1, y, z);
                     sv->neighbors->insert(neigh);
+                    // TODO: Think up a way to make the following line less ugly
+                    svs->at(neigh)->neighbors->insert(sv->index);
                 }
                 if(y > 0){
                     neigh = svspace->getPixel(x, y-1, z);
                     sv->neighbors->insert(neigh);
+                    svs->at(neigh)->neighbors->insert(sv->index);
                 }
                 if(z > 0){
                     neigh = svspace->getPixel(x, y, z-1);
                     sv->neighbors->insert(neigh);
+                    svs->at(neigh)->neighbors->insert(sv->index);
                 }
             }
         }
