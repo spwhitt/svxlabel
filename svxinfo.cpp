@@ -154,14 +154,10 @@ vector<Sv*>* svxinfo(SvSpace* svspace, string video_dir) {
 
                 if(sv->first < neigh->first) {
                     Link* link = new Link();
-
-                    double chisq_L =  sv->L->chiSquared(neigh->L);
-                    double chisq_a =  sv->a->chiSquared(neigh->a);
-                    double chisq_b =  sv->b->chiSquared(neigh->b);
-                    //double chisq_L =  sv->L->intersection(neigh->L);
-                    //double chisq_a =  sv->a->intersection(neigh->a);
-                    //double chisq_b =  sv->b->intersection(neigh->b);
-                    double weight = (1-chisq_L) * (1-chisq_a) * (1-chisq_b);
+                    double intersect_L =  sv->L->intersection(neigh->L);
+                    double intersect_a =  sv->a->intersection(neigh->a);
+                    double intersect_b =  sv->b->intersection(neigh->b);
+                    double weight = (1-intersect_L) * (1-intersect_a) * (1-intersect_b);
 
                     link->begin = sv;
                     link->end = neigh;
