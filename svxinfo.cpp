@@ -215,19 +215,26 @@ int main(int argc, char** argv) {
     cv::MatIterator_<uchar> gtruth_itr = gtruth.begin<uchar>();
     cv::MatIterator_<ushort> fstsvs_itr = fstsvs.begin<ushort>();
 
+    // Compute the mode label for each supervoxel on the first frame
+    unsigned mode[NUM_SUPERVOXELS][NUM_LABELS];
+    unsigned best[NUM_SUPERVOXELS];
     // Iterate through every pixel
     for (; gtruth_itr != gtruth.end<uchar>(); gtruth_itr++, fstsvs_itr++) {
-        // Naive implementation: simply takes the last pixel pair
-        // TODO: Reimplement to perform mode; get the most frequent label under the supervoxel
         ushort svlabel = *fstsvs_itr;
-        Sv* sv = svs->at(svlabel);
-        if(sv) {
-            sv->label = (int)*gtruth_itr;
+        int label = *gtruth_itr;
+        mode[svlabel][label]++;
+        if (mode[svlabel][label] > mode[svlabel][best[svlabel]]) {
+            best[svlabel] = label;
         }
     }
 
-    // Sort by initial frame
-    sort( svs->begin(), svs->end(), firstInitialFrame );
+    // Assign labels to supervoxels
+    for (int i=0; i<NUM_SUPERVOXELS; i++) {
+        Sv* sv = svs->at(i);
+        if(sv) {
+            sv->label = best[i];
+        }
+    }
 
     // Create a copy of the svs vector, this one sorted by initial frame
     vector<Sv*> svsSortedFF = *svs;
