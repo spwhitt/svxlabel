@@ -205,6 +205,8 @@ bool cmpWeight(Link* l1, Link* l2) {
 
 int main(int argc, char** argv) {
 
+    double time = (double)cv::getTickCount();
+
     SvSpace* svspace = load_video_frames("/vpml-scratch/spencer/data/bus/swa/05/");
 
     //cv::Mat lut(1, NUM_SUPERVOXELS, CV_8U);
@@ -262,7 +264,7 @@ int main(int argc, char** argv) {
                 count ++;
                 cout << (*i)->index << endl;
             } else {
-                Link* strongest = *max_element(fwd->begin(), fwd->end(), greatestWeight);
+                Link* strongest = *max_element(fwd->begin(), fwd->end(), cmpWeight);
 
                 Sv* choice = strongest->begin;
 
@@ -281,7 +283,6 @@ int main(int argc, char** argv) {
     // Visualize results!!!!!
     //
     
-    
     for(unsigned z=0; z < svspace->frames; z++) {
         for(unsigned y=0; y < (unsigned)svspace->rows; y++) {
             for(unsigned x=0; x < (unsigned)svspace->cols; x++) {
@@ -299,6 +300,9 @@ int main(int argc, char** argv) {
 
     // TODO: Convert to 8 bit?
     svspace->write();
+
+    time = ((double)cv::getTickCount() - time)/cv::getTickFrequency();
+    cout << "Time passed: " << time << " seconds" << endl;
 
     delete svs;
     delete svspace;
