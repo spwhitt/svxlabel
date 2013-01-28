@@ -31,7 +31,7 @@ using namespace std;
 
 unsigned NUM_HIST_BINS = 10;
 unsigned NUM_SUPERVOXELS = 35987;
-unsigned NUM_LABELS = 14;
+unsigned NUM_LABELS = 24;
 
 struct Sv;
 
