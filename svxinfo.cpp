@@ -186,7 +186,7 @@ vector<Sv*>* svxinfo(SvSpace* svspace, string video_dir) {
 }
 
 // Sort by which supervoxel 
-bool firstInitialFrame(Sv* sv1, Sv* sv2) {
+bool cmpInitialFrame(Sv* sv1, Sv* sv2) {
     // Have to handle the ugly case of sv1, or sv2 being an null pointer
     // This is a great argument for switching to a hashmap or something...
     if (!sv1) {
@@ -199,8 +199,8 @@ bool firstInitialFrame(Sv* sv1, Sv* sv2) {
     }
 }
 
-bool greatestWeight(Link* l1, Link* l2) {
-    return l1->weight > l2->weight;
+bool cmpWeight(Link* l1, Link* l2) {
+    return l1->weight < l2->weight;
 }
 
 int main(int argc, char** argv) {
