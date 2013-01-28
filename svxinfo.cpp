@@ -200,20 +200,38 @@ bool cmpWeight(Link* l1, Link* l2) {
 
 int main(int argc, char** argv) {
 
-    double time = (double)cv::getTickCount();
-
     cout << "Start." << endl;
 
-    SvSpace* svspace = load_video_frames("/vpml-scratch/spencer/data/bus/swa/05/");
+    double time = (double)cv::getTickCount();
+
+    // 
+    // Process command line arguments
+    //
+    string frames_dir;
+    string supervoxel_dir;
+    string gtruth_path;
+    if(argc == 4) {
+        frames_dir = argv[1];
+        supervoxel_dir = argv[2];
+        gtruth_path = argv[3];
+    } else if (argc==1) {
+        cout << "No arguments specified, using default bus sequence" << endl;
+        frames_dir = "/vpml-scratch/spencer/data/bus/frames/";
+        supervoxel_dir = "/vpml-scratch/spencer/data/bus/swa/05/";
+        gtruth_path = "/vpml-scratch/spencer/data/bus/labels/0001.png";
+    } else {
+        cout << "Invalid arguments." << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    SvSpace* svspace = load_video_frames(supervoxel_dir);
 
     // Get information about the supervoxels...
-    vector<Sv*>* svs = svxinfo(svspace, "/vpml-scratch/spencer/data/bus/frames/");
+    vector<Sv*>* svs = svxinfo(svspace, frames_dir);
 
-    // Get the first frame to label a few initial supervoxels
-    cv::Mat gtruth = cv::imread("/vpml-scratch/spencer/data/bus/labels/0001.png", CV_LOAD_IMAGE_GRAYSCALE); // 8 bit
-
-    // TODO: Use svspace instead
-    cv::Mat fstsvs = cv::imread("/vpml-scratch/spencer/data/bus/swa/05/0001.png", CV_LOAD_IMAGE_ANYDEPTH);  // 16 bit
+    // Ground truth and supervoxels from the first frame
+    cv::Mat gtruth = cv::imread(gtruth_path, CV_LOAD_IMAGE_GRAYSCALE); // 8 bit
+    cv::Mat fstsvs = svspace->data->at(1);
 
     cv::MatIterator_<uchar> gtruth_itr = gtruth.begin<uchar>();
     cv::MatIterator_<ushort> fstsvs_itr = fstsvs.begin<ushort>();
