@@ -5,7 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <set>
-//#include <tr1/unordered_map>
+#include <unordered_map>
 #include "histogram.h"
 #include "video.h"
 
@@ -29,9 +29,8 @@
 
 using namespace std;
 
-unsigned NUM_HIST_BINS = 10;
-unsigned NUM_SUPERVOXELS = 35987;
-unsigned NUM_LABELS = 24;
+#define NUM_HIST_BINS 10
+#define NUM_LABELS 24
 
 struct Sv;
 
@@ -64,7 +63,10 @@ struct Sv {
     }
 };
 
-vector<Sv*>* svxinfo(SvSpace* svspace, string video_dir) {
+// Type which associates pixel values with Sv structures
+typedef unordered_map<unsigned, Sv*> SvMap;
+
+SvMap* svxinfo(SvSpace* svspace, string video_dir) {
 
     //
     // Part 1: Load each video frame, and process each pixel one at a time
@@ -84,8 +86,7 @@ vector<Sv*>* svxinfo(SvSpace* svspace, string video_dir) {
     // TODO: Speed up Mat access with row pointers
     //
 
-    vector<Sv*>* svs = new vector<Sv*>(NUM_SUPERVOXELS);
-    //unordered_map<unsigned, Sv*> svs
+    SvMap* svs = new SvMap();
 
     for(unsigned z=0; z < svspace->frames; z++) {
         // Load input frame
@@ -99,11 +100,12 @@ vector<Sv*>* svxinfo(SvSpace* svspace, string video_dir) {
                 cv::Vec3b frame_pix = frame.at<cv::Vec3b>(y, x);
 
                 // compute supervoxel size and location
-                // TODO: Try, catch around this line, to resize vector if out-of-bounds
-                Sv* sv = svs->at(svimg_pix);
-                if(!sv) {
+                Sv* sv;
+                try {
+                    sv = svs->at(svimg_pix);
+                } catch (out_of_range& oor) {
                     sv = new Sv();
-                    svs->at(svimg_pix) = sv;
+                    svs->insert({svimg_pix, sv});
                     sv->index = svimg_pix;
                     sv->first = z;
                 }
@@ -145,35 +147,33 @@ vector<Sv*>* svxinfo(SvSpace* svspace, string video_dir) {
     // create the fwd and rvs links, as well as the weight of each one
     //
 
-    for (unsigned i=0; i < NUM_SUPERVOXELS; i++) {
-        if(svs->at(i)) {
-            Sv* sv = svs->at(i);
+    for(auto it=svs->begin(); it != svs->end(); it++) {
+        Sv* sv = it->second;
 
-            for(set<unsigned>::iterator it = sv->neighbors->begin(); it!=sv->neighbors->end(); it++) {
-                Sv* neigh = svs->at(*it);
+        for(set<unsigned>::iterator it = sv->neighbors->begin(); it!=sv->neighbors->end(); it++) {
+            Sv* neigh = svs->at(*it);
 
-                if(sv->first < neigh->first) {
-                    Link* link = new Link();
-                    double intersect_L =  sv->L->intersection(neigh->L);
-                    double intersect_a =  sv->a->intersection(neigh->a);
-                    double intersect_b =  sv->b->intersection(neigh->b);
-                    double weight = (1-intersect_L) * (1-intersect_a) * (1-intersect_b);
+            if(sv->first < neigh->first) {
+                Link* link = new Link();
+                double intersect_L =  sv->L->intersection(neigh->L);
+                double intersect_a =  sv->a->intersection(neigh->a);
+                double intersect_b =  sv->b->intersection(neigh->b);
+                double weight = (1-intersect_L) * (1-intersect_a) * (1-intersect_b);
 
-                    link->begin = sv;
-                    link->end = neigh;
-                    link->weight = weight;
+                link->begin = sv;
+                link->end = neigh;
+                link->weight = weight;
 
-                    // Add the forward links to the neighbor instead of the original supervoxel
-                    // The neighbor needs to know about incoming links when deciding which label to choose
-                    // The other supervoxel doesn't really care...
-                    neigh->fwd_links->push_back(link);
-                }
-
-                // Reverse Links
-                //if(sv->last > neigh->last) {
-                //rvs_links.push_back(neigh->index);
-                //}
+                // Add the forward links to the neighbor instead of the original supervoxel
+                // The neighbor needs to know about incoming links when deciding which label to choose
+                // The other supervoxel doesn't really care...
+                neigh->fwd_links->push_back(link);
             }
+
+            // Reverse Links
+            //if(sv->last > neigh->last) {
+            //rvs_links.push_back(neigh->index);
+            //}
         }
     }
 
@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
     SvSpace* svspace = load_video_frames(supervoxel_dir);
 
     // Get information about the supervoxels...
-    vector<Sv*>* svs = svxinfo(svspace, frames_dir);
+    SvMap* svs = svxinfo(svspace, frames_dir);
 
     // Ground truth and supervoxels from the first frame
     cv::Mat gtruth = cv::imread(gtruth_path, CV_LOAD_IMAGE_GRAYSCALE); // 8 bit
@@ -237,11 +237,13 @@ int main(int argc, char** argv) {
     cv::MatIterator_<ushort> fstsvs_itr = fstsvs.begin<ushort>();
 
     // Compute the mode label for each supervoxel on the first frame
-    unsigned mode[NUM_SUPERVOXELS][NUM_LABELS];
+    unordered_map<unsigned, vector<unsigned>> mode;
     // Iterate through every pixel
     for (; gtruth_itr != gtruth.end<uchar>(); gtruth_itr++, fstsvs_itr++) {
         ushort svlabel = *fstsvs_itr;
         int label = *gtruth_itr;
+        // TODO: The resize below is ugly, there is definitely a better way
+        mode[svlabel].resize(NUM_LABELS);
         mode[svlabel][label]++;
         Sv* sv = svs->at(svlabel);
         if(mode[svlabel][label] > mode[svlabel][sv->label]) {
@@ -250,47 +252,46 @@ int main(int argc, char** argv) {
     }
 
     // Create a copy of the svs vector, this one sorted by initial frame
-    vector<Sv*> svsSortedFF = *svs;
+    vector<Sv*> svsSortedFF;
+    svsSortedFF.reserve(svs->size());
+    for(auto it=svs->begin(); it != svs->end(); it++) {
+        svsSortedFF.push_back(it->second);
+    }
     sort( svsSortedFF.begin(), svsSortedFF.end(), cmpInitialFrame );
 
     int count = 0;
     // Propagate the labels along the fwd links
     for(vector<Sv*>::iterator i=svsSortedFF.begin(); i != svsSortedFF.end(); i++) {
-        if(*i) {
-            vector<Link*>* fwd = (*i)->fwd_links;
+        vector<Link*>* fwd = (*i)->fwd_links;
 
-            // Alread has a label, no need to compute a new one
-            if ((*i)->label != -1) {
-                continue;
-            }
+        // Alread has a label, no need to compute a new one
+        if ((*i)->label != -1) {
+            continue;
+        }
 
-            if(fwd->size() == 0) {
-                count ++;
-                cout << (*i)->index << endl;
-            } else {
-                Link* strongest = *max_element(fwd->begin(), fwd->end(), cmpWeight);
-
-                Sv* choice = strongest->begin;
-
-                // Assign label
-                (*i)->label = choice->label;
-            }
-
+        if(fwd->size() == 0) {
+            count++;
         } else {
-            cout << "skip" << endl;
+            Link* strongest = *max_element(fwd->begin(), fwd->end(), cmpWeight);
+
+            Sv* choice = strongest->begin;
+
+            // Assign label
+            (*i)->label = choice->label;
         }
     }
+
     cout << count << " svs have no incoming links " << endl;
 
     //
     // Visualize results!!!!!
     //
-    
+
     for(unsigned z=0; z < svspace->frames; z++) {
         for(unsigned y=0; y < (unsigned)svspace->rows; y++) {
             for(unsigned x=0; x < (unsigned)svspace->cols; x++) {
                 ushort supervoxel = svspace->getPixel(x,y,z);
-                unsigned value = svs->at(supervoxel)->label;
+                int value = svs->at(supervoxel)->label;
                 // TODO: figure out WHY some values are -1, when logically they should not...
                 // Also, perhaps implement appearance model here
                 if (value == -1) {
