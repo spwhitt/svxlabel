@@ -193,8 +193,8 @@ bool cmpInitialFrame(Sv* sv1, Sv* sv2) {
         return false;
     } else if (!sv2) {
         return true;
-        // Simply return whichever one has the earlier first frame
     } else {
+        // Simply return whichever one has the earlier first frame
         return sv1->first < sv2->first;
     }
 }
@@ -226,28 +226,20 @@ int main(int argc, char** argv) {
 
     // Compute the mode label for each supervoxel on the first frame
     unsigned mode[NUM_SUPERVOXELS][NUM_LABELS];
-    unsigned best[NUM_SUPERVOXELS];
     // Iterate through every pixel
     for (; gtruth_itr != gtruth.end<uchar>(); gtruth_itr++, fstsvs_itr++) {
         ushort svlabel = *fstsvs_itr;
         int label = *gtruth_itr;
         mode[svlabel][label]++;
-        if (mode[svlabel][label] > mode[svlabel][best[svlabel]]) {
-            best[svlabel] = label;
-        }
-    }
-
-    // Assign labels to supervoxels
-    for (int i=0; i<NUM_SUPERVOXELS; i++) {
-        Sv* sv = svs->at(i);
-        if(sv) {
-            sv->label = best[i];
+        Sv* sv = svs->at(svlabel);
+        if(mode[svlabel][label] > mode[svlabel][sv->label]) {
+            sv->label = label;
         }
     }
 
     // Create a copy of the svs vector, this one sorted by initial frame
     vector<Sv*> svsSortedFF = *svs;
-    sort( svsSortedFF.begin(), svsSortedFF.end(), firstInitialFrame );
+    sort( svsSortedFF.begin(), svsSortedFF.end(), cmpInitialFrame );
 
     int count = 0;
     // Propagate the labels along the fwd links
