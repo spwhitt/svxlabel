@@ -9,13 +9,13 @@ class Histogram {
 protected:
     std::vector<unsigned> *hist;
     //unsigned* hist;
-    int num_bins;
+    unsigned num_bins;
+    unsigned sum;
     int delta;
     int min;
-    unsigned sum;
 
 public:
-    Histogram(unsigned int bins, int smin, int smax) {
+    Histogram(unsigned bins, int smin, int smax) {
         hist = new std::vector<unsigned>();
         hist->resize(bins, 0);
         //hist = new unsigned[bins];
@@ -32,9 +32,9 @@ public:
         delete hist;
     }
 
-    int chooseBin(int sample) {
+    unsigned chooseBin(int sample) {
         // shift to the origin, then divide into delta to figure out bin number
-        int bin = (sample - min) / delta;
+        unsigned bin = (sample - min) / delta;
         // Handle samples above or below range
         if (bin < 0) bin = 0;
         if (bin >= num_bins) bin = num_bins-1;
@@ -43,14 +43,14 @@ public:
     }
 
     void add(int sample) {
-        int bin = chooseBin(sample);
+        unsigned bin = chooseBin(sample);
         hist->at(bin)=hist->at(bin)+1;
         sum++;
     }
 
     void merge(Histogram* h) {
         // TODO: Assert num_bins, min, max ==
-        for(unsigned int n=0; n<num_bins; n++) {
+        for(unsigned n=0; n<num_bins; n++) {
             hist->at(n) += h->hist->at(n);
             sum += h->hist->at(n);
         }
@@ -58,7 +58,7 @@ public:
 
     double chiSquared(Histogram* h) {
         double chi = 0.0;
-        for (unsigned int i=0; i<num_bins; i++) {
+        for (unsigned i=0; i<num_bins; i++) {
             // Get bins and normalize them
             double ss = hist->at(i) / double(sum);
             double hs = h->hist->at(i) / double(h->sum);
@@ -82,7 +82,7 @@ public:
     }
 
     void print() {
-        for (unsigned int i = 0; i < num_bins; i++) {
+        for (unsigned i = 0; i < num_bins; i++) {
             std::cout << hist->at(i)/double(sum) << " ";
         }
         std::cout << std::endl;

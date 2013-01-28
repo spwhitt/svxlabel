@@ -61,7 +61,7 @@ class SvSpace {
 
     void write() {
         char buff[15];
-        for(int z=0; z<data->size(); z++) {
+        for(unsigned z=0; z<data->size(); z++) {
             sprintf(buff, "output%04d.png", z);
             cv::imwrite(string(buff), data->at(z));
         }
