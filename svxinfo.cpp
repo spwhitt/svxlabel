@@ -155,13 +155,12 @@ vector<Sv*>* svxinfo(SvSpace* svspace, string video_dir) {
                 if(sv->first < neigh->first) {
                     Link* link = new Link();
 
-                    // TODO: Ask Albert about chiSquared, possibly switch back to intersection or something
-                    //double chisq_L =  sv->L->chiSquared(neigh->L);
-                    //double chisq_a =  sv->a->chiSquared(neigh->a);
-                    //double chisq_b =  sv->b->chiSquared(neigh->b);
-                    double chisq_L =  sv->L->intersection(neigh->L);
-                    double chisq_a =  sv->a->intersection(neigh->a);
-                    double chisq_b =  sv->b->intersection(neigh->b);
+                    double chisq_L =  sv->L->chiSquared(neigh->L);
+                    double chisq_a =  sv->a->chiSquared(neigh->a);
+                    double chisq_b =  sv->b->chiSquared(neigh->b);
+                    //double chisq_L =  sv->L->intersection(neigh->L);
+                    //double chisq_a =  sv->a->intersection(neigh->a);
+                    //double chisq_b =  sv->b->intersection(neigh->b);
                     double weight = (1-chisq_L) * (1-chisq_a) * (1-chisq_b);
 
                     link->begin = sv;
@@ -207,11 +206,10 @@ int main(int argc, char** argv) {
 
     double time = (double)cv::getTickCount();
 
+    cout << "Start." << endl;
+
     SvSpace* svspace = load_video_frames("/vpml-scratch/spencer/data/bus/swa/05/");
 
-    //cv::Mat lut(1, NUM_SUPERVOXELS, CV_8U);
-
-    // Get iterators
     // Get information about the supervoxels...
     vector<Sv*>* svs = svxinfo(svspace, "/vpml-scratch/spencer/data/bus/frames/");
 
@@ -264,7 +262,6 @@ int main(int argc, char** argv) {
                 (*i)->label = choice->label;
             }
 
-            //myfile << (*i)->index << ", " << (*i)->label << endl;
         } else {
             cout << "skip" << endl;
         }
