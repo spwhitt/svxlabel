@@ -7,6 +7,7 @@
 #include <set>
 //#include <tr1/unordered_map>
 #include "histogram.h"
+#include "video.h"
 
 //
 // Future Ideas:
@@ -33,40 +34,6 @@ unsigned NUM_SUPERVOXELS = 35987;
 unsigned NUM_LABELS = 14;
 
 struct Sv;
-
-vector<string>* list_files(string dir) {
-    DIR* dir_stream = opendir(dir.c_str());
-    if (!dir_stream) {
-        cout << "Failed to open directory " << dir << endl;
-        exit(EXIT_FAILURE);
-    }
-
-    dirent* entry;
-
-    vector<string>* paths = new vector<string>();
-    // Get image paths
-    while( (entry = readdir(dir_stream)) ) {
-        // If the entry is a regular file
-        if (entry->d_type == DT_REG){ 
-            // Get the filename
-            string fname = entry->d_name;
-            fname = dir + "/" + fname;
-            paths->push_back(fname);
-        }
-    }
-
-    // clean up
-    closedir(dir_stream);
-
-    if (!paths->size()) {
-        cout << "Directory is empty" << endl;
-        exit(EXIT_FAILURE);
-    }
-
-    sort(paths->begin(), paths->end());
-
-    return paths;
-}
 
 struct Link {
     double weight;
@@ -97,7 +64,7 @@ struct Sv {
     }
 };
 
-vector<Sv*>* svxinfo(string sv_dir, string video_dir) {
+vector<Sv*>* svxinfo(SvSpace* svspace, string video_dir) {
 
     //
     // Part 1: Load each video frame, and process each pixel one at a time
@@ -109,30 +76,26 @@ vector<Sv*>* svxinfo(string sv_dir, string video_dir) {
     //  - CIE-Lab histograms
     //
 
-    vector<string>* svimg_paths = list_files(sv_dir);
     vector<string>* video_paths = list_files(video_dir);
 
-    unsigned numframes = svimg_paths->size();
     // TODO: Assert that supervoxel_paths and video_paths have the same number of frames, same size...
-
     // TODO: Fix the sizing of this array to something more reasonable
     // a hardcoded # of supervoxels is painful, and just asking for trouble...
-    //Sv svs[NUM_SUPERVOXELS];
+    // TODO: Speed up Mat access with row pointers
+    //
+
     vector<Sv*>* svs = new vector<Sv*>(NUM_SUPERVOXELS);
     //unordered_map<unsigned, Sv*> svs
 
-    cv::Mat svimg_prev;
-
-    for(unsigned z=0; z < numframes; z++) {
-        // Load input images
-        cv::Mat svimg = cv::imread(svimg_paths->at(z), CV_LOAD_IMAGE_ANYDEPTH);
+    for(unsigned z=0; z < svspace->frames; z++) {
+        // Load input frame
         cv::Mat frame = cv::imread(video_paths->at(z));
         cv::cvtColor(frame, frame, CV_BGR2Lab);
 
-        for(unsigned y=0; y < (unsigned)svimg.rows; y++) {
-            for(unsigned x=0; x < (unsigned)svimg.cols; x++) {
+        for(unsigned y=0; y < (unsigned)svspace->rows; y++) {
+            for(unsigned x=0; x < (unsigned)svspace->cols; x++) {
                 // Get color and supervoxel label for the current x,y,z location
-                ushort svimg_pix = svimg.at<ushort>(y, x);
+                ushort svimg_pix = svspace->getPixel(x, y, z);
                 cv::Vec3b frame_pix = frame.at<cv::Vec3b>(y, x);
 
                 // compute supervoxel size and location
@@ -156,26 +119,21 @@ vector<Sv*>* svxinfo(string sv_dir, string video_dir) {
                 // find neighboring supervoxels
                 ushort neigh;
                 if(x > 0){
-                    neigh = svimg.at<ushort>(y, x-1);
+                    neigh = svspace->getPixel(x-1, y, z);
                     sv->neighbors->insert(neigh);
                 }
                 if(y > 0){
-                    neigh = svimg.at<ushort>(y-1, x);
+                    neigh = svspace->getPixel(x, y-1, z);
                     sv->neighbors->insert(neigh);
                 }
                 if(z > 0){
-                    neigh = svimg_prev.at<ushort>(y, x);
+                    neigh = svspace->getPixel(x, y, z-1);
                     sv->neighbors->insert(neigh);
                 }
             }
         }
-
-        // Hold on to the previous frame's supervoxels, so we can
-        // check for neighboring supervoxels in the temporal dimension
-        svimg_prev = svimg;
     }
 
-    delete svimg_paths;
     delete video_paths;
 
     //
@@ -240,14 +198,18 @@ bool greatestWeight(Link* l1, Link* l2) {
 
 int main(int argc, char** argv) {
 
+    SvSpace* svspace = load_video_frames("/vpml-scratch/spencer/data/bus/swa/05/");
+
     //cv::Mat lut(1, NUM_SUPERVOXELS, CV_8U);
 
     // Get iterators
     // Get information about the supervoxels...
-    vector<Sv*>* svs = svxinfo("/vpml-scratch/spencer/data/bus/swa/05/", "/vpml-scratch/spencer/data/bus/frames/");
+    vector<Sv*>* svs = svxinfo(svspace, "/vpml-scratch/spencer/data/bus/frames/");
 
     // Get the first frame to label a few initial supervoxels
     cv::Mat gtruth = cv::imread("/vpml-scratch/spencer/data/bus/labels/0001.png", CV_LOAD_IMAGE_GRAYSCALE); // 8 bit
+
+    // TODO: Use svspace instead
     cv::Mat fstsvs = cv::imread("/vpml-scratch/spencer/data/bus/swa/05/0001.png", CV_LOAD_IMAGE_ANYDEPTH);  // 16 bit
 
     cv::MatIterator_<uchar> gtruth_itr = gtruth.begin<uchar>();
@@ -267,12 +229,13 @@ int main(int argc, char** argv) {
     // Sort by initial frame
     sort( svs->begin(), svs->end(), firstInitialFrame );
 
-    ofstream myfile;
-    myfile.open ("out.csv");
+    // Create a copy of the svs vector, this one sorted by initial frame
+    vector<Sv*> svsSortedFF = *svs;
+    sort( svsSortedFF.begin(), svsSortedFF.end(), firstInitialFrame );
 
     int count = 0;
     // Propagate the labels along the fwd links
-    for(vector<Sv*>::iterator i=svs->begin(); i != svs->end(); i++) {
+    for(vector<Sv*>::iterator i=svsSortedFF.begin(); i != svsSortedFF.end(); i++) {
         if(*i) {
             vector<Link*>* fwd = (*i)->fwd_links;
 
@@ -293,17 +256,38 @@ int main(int argc, char** argv) {
                 (*i)->label = choice->label;
             }
 
-            myfile << (*i)->index << ", " << (*i)->label << endl;
+            //myfile << (*i)->index << ", " << (*i)->label << endl;
         } else {
             cout << "skip" << endl;
         }
     }
-
     cout << count << " svs have no incoming links " << endl;
 
-    myfile.close();
+    //
+    // Visualize results!!!!!
+    //
+    
+    
+    for(unsigned z=0; z < svspace->frames; z++) {
+        for(unsigned y=0; y < (unsigned)svspace->rows; y++) {
+            for(unsigned x=0; x < (unsigned)svspace->cols; x++) {
+                ushort supervoxel = svspace->getPixel(x,y,z);
+                unsigned value = svs->at(supervoxel)->label;
+                // TODO: figure out WHY some values are -1, when logically they should not...
+                // Also, perhaps implement appearance model here
+                if (value == -1) {
+                    value = 0;
+                }
+                svspace->setPixel(x, y, z, value);
+            }
+        }
+    }
+
+    // TODO: Convert to 8 bit?
+    svspace->write();
 
     delete svs;
+    delete svspace;
 
     return 0;
 }
