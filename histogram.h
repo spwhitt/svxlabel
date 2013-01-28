@@ -72,6 +72,15 @@ public:
         return chi/2.0;
     }
 
+    double intersection(Histogram* h) {
+        unsigned sumofmins = 0;
+        for (unsigned i=0; i<num_bins; i++) {
+            sumofmins += std::min(hist->at(i), h->hist->at(i));
+        }
+        unsigned minofsums = std::min(sum, h->sum);
+        return 1-(sumofmins/double(minofsums));
+    }
+
     void print() {
         for (unsigned int i = 0; i < num_bins; i++) {
             std::cout << hist->at(i)/double(sum) << " ";
