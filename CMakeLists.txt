@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 project( svxinfo )
-add_definitions( -O0 -g -Wall )
+#add_definitions( -O0 -g -Wall )
+add_definitions( -O2 )
 find_package( OpenCV REQUIRED )
 add_executable( svxinfo svxinfo.cpp )
 target_link_libraries( svxinfo ${OpenCV_LIBS} )
