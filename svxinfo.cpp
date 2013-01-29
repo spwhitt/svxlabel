@@ -231,7 +231,7 @@ int main(int argc, char** argv) {
 
     // Ground truth and supervoxels from the first frame
     cv::Mat gtruth = cv::imread(gtruth_path, CV_LOAD_IMAGE_GRAYSCALE); // 8 bit
-    cv::Mat fstsvs = svspace->data->at(1);
+    cv::Mat fstsvs = svspace->data->at(0);
 
     cv::MatIterator_<uchar> gtruth_itr = gtruth.begin<uchar>();
     cv::MatIterator_<ushort> fstsvs_itr = fstsvs.begin<ushort>();
