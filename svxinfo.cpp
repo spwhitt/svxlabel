@@ -259,7 +259,6 @@ int main(int argc, char** argv) {
     }
     sort( svsSortedFF.begin(), svsSortedFF.end(), cmpInitialFrame );
 
-    int count = 0;
     // Propagate the labels along the fwd links
     for(vector<Sv*>::iterator i=svsSortedFF.begin(); i != svsSortedFF.end(); i++) {
         vector<Link*>* fwd = (*i)->fwd_links;
@@ -270,7 +269,8 @@ int main(int argc, char** argv) {
         }
 
         if(fwd->size() == 0) {
-            count++;
+            cout << "An unlabeled supervoxel lacks incoming links. This should never happen." << endl;
+            exit(EXIT_FAILURE);
         } else {
             Link* strongest = *max_element(fwd->begin(), fwd->end(), cmpWeight);
 
@@ -281,21 +281,19 @@ int main(int argc, char** argv) {
         }
     }
 
-    cout << count << " svs have no incoming links " << endl;
-
     //
     // Visualize results!!!!!
     //
 
+    int negative_one_count = 0;
     for(unsigned z=0; z < svspace->frames; z++) {
         for(unsigned y=0; y < (unsigned)svspace->rows; y++) {
             for(unsigned x=0; x < (unsigned)svspace->cols; x++) {
                 ushort supervoxel = svspace->getPixel(x,y,z);
                 int value = svs->at(supervoxel)->label;
-                // TODO: figure out WHY some values are -1, when logically they should not...
-                // Also, perhaps implement appearance model here
                 if (value == -1) {
-                    value = 0;
+                    cout << "A supervoxel was left unlabeled. This should never happen" << endl;
+                    exit(EXIT_FAILURE);
                 }
                 svspace->setPixel(x, y, z, value);
             }
