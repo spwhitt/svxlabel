@@ -10,6 +10,7 @@ using namespace std;
 
 vector<string>* list_files(string dir) {
     DIR* dir_stream = opendir(dir.c_str());
+
     if (!dir_stream) {
         cout << "Failed to open directory " << dir << endl;
         exit(EXIT_FAILURE);
@@ -18,10 +19,11 @@ vector<string>* list_files(string dir) {
     dirent* entry;
 
     vector<string>* paths = new vector<string>();
+
     // Get image paths
-    while( (entry = readdir(dir_stream)) ) {
+    while ((entry = readdir(dir_stream))) {
         // If the entry is a regular file
-        if (entry->d_type == DT_REG){ 
+        if (entry->d_type == DT_REG) {
             // Get the filename
             string fname = entry->d_name;
             fname = dir + "/" + fname;
@@ -43,7 +45,7 @@ vector<string>* list_files(string dir) {
 }
 
 class SvSpace {
-    public:
+public:
     unsigned cols, rows, frames;
     vector<cv::Mat>* data;
     SvSpace() {
@@ -61,7 +63,8 @@ class SvSpace {
 
     void write() {
         char buff[15];
-        for(unsigned z=0; z<data->size(); z++) {
+
+        for (unsigned z = 0; z < data->size(); z++) {
             sprintf(buff, "output%04d.png", z);
             cv::imwrite(string(buff), data->at(z));
         }
@@ -77,10 +80,11 @@ SvSpace* load_video_frames(string frame_dir) {
     svspace->data->reserve(paths->size());
 
     // Read each image file from list of paths
-    for(unsigned i = 0; i < paths->size(); i++) {
+    for (unsigned i = 0; i < paths->size(); i++) {
         string fname = paths->at(i);
         cv::Mat im = cv::imread(fname, CV_LOAD_IMAGE_ANYDEPTH);
-        if(!im.data) {
+
+        if (!im.data) {
             cout << "Skipping non-image file " << fname << endl;
         } else {
             svspace->data->push_back(im);
