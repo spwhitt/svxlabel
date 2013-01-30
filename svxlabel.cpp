@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include "histogram.h"
 #include "video.h"
+#include "config.h"
 
 //
 // Future Ideas:
@@ -217,11 +218,8 @@ int main(int argc, char** argv) {
         frames_dir = argv[1];
         supervoxel_dir = argv[2];
         gtruth_path = argv[3];
-    } else if (argc == 1) {
-        cout << "No arguments specified, using default bus sequence" << endl;
-        frames_dir = "/vpml-scratch/spencer/data/bus/frames/";
-        supervoxel_dir = "/vpml-scratch/spencer/data/bus/swa/05/";
-        gtruth_path = "/vpml-scratch/spencer/data/bus/labels/0001.png";
+    } else if (argc == 2) {
+        parse_config_file(argv[1], &frames_dir, &supervoxel_dir, &gtruth_path);
     } else {
         cout << "Invalid arguments." << endl;
         exit(EXIT_FAILURE);
